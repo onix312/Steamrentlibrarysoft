@@ -83,6 +83,63 @@ def diagnose(inputs: dict) -> dict:
     text = "\n".join(text_parts).lower()
 
     matches: list[tuple[float, Diagnosis]] = []
+
+    # Structured facts have higher value than keyword matches.
+    port_open = inputs.get("port_open")
+    if port_open is False:
+        matches.append((0.92, Diagnosis(
+            problem="Порт сервера недоступен", category="port", confidence=0.92,
+            evidence=["port_open=false по результату сетевой проверки"],
+            fix="Проверьте bind-address, локальный firewall и проброс порта на роутере.",
+            risk="low", rollback="Удалите только добавленные правила firewall/port-forward.",
+        )))
+
+    try:
+        free_ram_mb = float(inputs.get("available_ram_mb"))
+    except (TypeError, ValueError):
+        free_ram_mb = -1
+    if 0 <= free_ram_mb < 1024:
+        matches.append((0.88, Diagnosis(
+            problem="Недостаточно свободной RAM для стабильной работы сервера",
+            category="memory", confidence=0.88,
+            evidence=[f"available_ram_mb={free_ram_mb:.0f}"],
+            fix="Освободите RAM или уменьшите memory/tick/view-distance параметры сервера.",
+            risk="low", rollback="Верните прежние лимиты памяти из сохранённой конфигурации.",
+        )))
+
+    try:
+        cpu_pct = float(inputs.get("cpu_percent"))
+    except (TypeError, ValueError):
+        cpu_pct = -1
+    if cpu_pct >= 95:
+        matches.append((0.82, Diagnosis(
+            problem="CPU практически постоянно насыщен",
+            category="cpu", confidence=0.82,
+            evidence=[f"cpu_percent={cpu_pct:.0f}%"],
+            fix="Снимите профиль нагрузки; уменьшите тяжёлые tick/simulation параметры и проверьте плагины.",
+            risk="low", rollback="Верните прежние параметры сервера.",
+        )))
+
+    missing_mods = inputs.get("missing_mods") or []
+    if isinstance(missing_mods, str):
+        missing_mods = [missing_mods]
+    if missing_mods:
+        matches.append((0.94, Diagnosis(
+            problem="Отсутствуют зависимости/моды сервера", category="mod", confidence=0.94,
+            evidence=["missing_mods: " + ", ".join(map(str, missing_mods[:10]))],
+            fix="Восстановите требуемые моды/версии и проверьте порядок загрузки.",
+            risk="low", rollback="Сохраните исходный список модов и конфигурацию.",
+        )))
+
+    server_version = inputs.get("server_version")
+    client_version = inputs.get("client_version")
+    if server_version and client_version and str(server_version) != str(client_version):
+        matches.append((0.91, Diagnosis(
+            problem="Версия клиента и сервера не совпадает", category="update", confidence=0.91,
+            evidence=[f"server_version={server_version}", f"client_version={client_version}"],
+            fix="Синхронизируйте версии клиента/сервера и совместимые версии модов.",
+            risk="medium", rollback="Перед обновлением сохраните бинарники/конфиги и world backup.",
+        )))
     for category, pattern, problem, fix in RULES:
         found = re.findall(pattern, text, flags=re.IGNORECASE)
         if found:
