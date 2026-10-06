@@ -1,6 +1,6 @@
 {
   "name": "core-games",
-  "version": 1,
+  "version": 2,
   "game": "Multi",
   "enabled": true,
   "products": [
@@ -362,6 +362,137 @@
       "estimated_manual_minutes": 0,
       "payload_template": {
         "game": "Rust"
+      }
+    },
+    {
+      "code": "PZ_CONFIG_BEGINNER",
+      "name": "PZ Beginner Server Config",
+      "game": "Project Zomboid",
+      "type": "auto",
+      "automation_level": "A4",
+      "workflow_code": "auto_delivery",
+      "engine": "config_factory",
+      "price": 149,
+      "minimum_price": 104.3,
+      "stock_mode": "stock",
+      "target_stock": 5,
+      "enabled": true,
+      "estimated_manual_minutes": 0,
+      "payload_template": {
+        "game": "Project Zomboid",
+        "preset": "beginner"
+      }
+    },
+    {
+      "code": "PZ_CONFIG_HARDCORE",
+      "name": "PZ Hardcore Server Config",
+      "game": "Project Zomboid",
+      "type": "auto",
+      "automation_level": "A4",
+      "workflow_code": "auto_delivery",
+      "engine": "config_factory",
+      "price": 149,
+      "minimum_price": 104.3,
+      "stock_mode": "stock",
+      "target_stock": 5,
+      "enabled": true,
+      "estimated_manual_minutes": 0,
+      "payload_template": {
+        "game": "Project Zomboid",
+        "preset": "hardcore"
+      }
+    },
+    {
+      "code": "PZ_CONFIG_COOP",
+      "name": "PZ Co-op Server Config",
+      "game": "Project Zomboid",
+      "type": "auto",
+      "automation_level": "A4",
+      "workflow_code": "auto_delivery",
+      "engine": "config_factory",
+      "price": 179,
+      "minimum_price": 125.3,
+      "stock_mode": "stock",
+      "target_stock": 5,
+      "enabled": true,
+      "estimated_manual_minutes": 0,
+      "payload_template": {
+        "game": "Project Zomboid",
+        "preset": "coop"
+      }
+    },
+    {
+      "code": "PZ_MOD_QOL",
+      "name": "PZ QoL Mod Setup",
+      "game": "Project Zomboid",
+      "type": "semi_auto",
+      "automation_level": "A3",
+      "workflow_code": "semi_auto_doctor",
+      "engine": "mod_doctor",
+      "price": 499,
+      "minimum_price": 349.3,
+      "stock_mode": "none",
+      "target_stock": 0,
+      "enabled": true,
+      "estimated_manual_minutes": 10,
+      "payload_template": {
+        "game": "Project Zomboid",
+        "preset": "qol"
+      }
+    },
+    {
+      "code": "PZ_SERVER_SETUP",
+      "name": "PZ Server Setup под ключ",
+      "game": "Project Zomboid",
+      "type": "semi_auto",
+      "automation_level": "A2",
+      "workflow_code": "server_setup",
+      "engine": "server_doctor",
+      "price": 799,
+      "minimum_price": 559.3,
+      "stock_mode": "none",
+      "target_stock": 0,
+      "enabled": true,
+      "estimated_manual_minutes": 25,
+      "payload_template": {
+        "game": "Project Zomboid"
+      }
+    },
+    {
+      "code": "PZ_SAVE_REPAIR",
+      "name": "PZ Save Repair",
+      "game": "Project Zomboid",
+      "type": "semi_auto",
+      "automation_level": "A3",
+      "workflow_code": "semi_auto_doctor",
+      "engine": "save_doctor",
+      "price": 399,
+      "minimum_price": 279.3,
+      "stock_mode": "none",
+      "target_stock": 0,
+      "enabled": true,
+      "estimated_manual_minutes": 15,
+      "payload_template": {
+        "game": "Project Zomboid"
+      }
+    },
+    {
+      "code": "MC_MODPACK_SETUP",
+      "name": "Minecraft Modpack Setup",
+      "game": "Minecraft",
+      "type": "semi_auto",
+      "automation_level": "A2",
+      "workflow_code": "semi_auto_doctor",
+      "engine": "mod_doctor",
+      "price": 699,
+      "minimum_price": 489.3,
+      "stock_mode": "none",
+      "target_stock": 0,
+      "enabled": true,
+      "estimated_manual_minutes": 20,
+      "payload_template": {
+        "game": "Minecraft",
+        "preset": "modpack"
       }
     }
   ]
