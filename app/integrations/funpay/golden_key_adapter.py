@@ -116,11 +116,13 @@ class GoldenKeyFunPayAdapter(FunPayAdapter):
             if node_id is not None:
                 client.get_own_lots(node_id)
                 checks["lots"] = "ok"
-        except UnauthorizedError:
+        except UnauthorizedError as exc:
             checks["auth"] = "unauthorized"
-            raise
-        except FloodError:
-            raise
+            checks["error"] = str(exc)
+            return {"ok": False, "checks": checks, "breaker": GLOBAL_FUNPAY_BREAKER.state.value}
+        except FloodError as exc:
+            checks["rate_limit"] = str(exc)
+            return {"ok": False, "checks": checks, "breaker": GLOBAL_FUNPAY_BREAKER.state.value}
         except GoldenKeyError as exc:
             GLOBAL_FUNPAY_BREAKER.trip(str(exc))
             checks["error"] = str(exc)
