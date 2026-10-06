@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Данные приложения (БД, логи, бэкапы, секреты) — только локально
+data/
+
+# PyInstaller
+build/
+dist/
+*.spec.bak
