@@ -66,6 +66,7 @@ def enrich_case(case: Any) -> Any:
         metadata = dict(case.metadata)
         metadata["game_plugin"] = case.game
         metadata["plugin_signals"] = list(plugin["signals"])
+        inputs["plugin_signals"] = list(plugin["signals"])
         inputs["plugin_recommendations"] = list(plugin["recommendations"])
         return replace(case, inputs=inputs, metadata=metadata)
     return replace(case, inputs=inputs)
