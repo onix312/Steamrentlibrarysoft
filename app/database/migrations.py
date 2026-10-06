@@ -128,7 +128,8 @@ class MigrationManager:
             return MigrationReport(CURRENT_REVISION, CURRENT_SCHEMA_VERSION)
 
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        legacy = self._has_legacy_schema() and self.current_revision() is None
+        current = self.current_revision()
+        legacy = self._has_legacy_schema() and current is None
         backup_path = None
 
         if self.db_path.exists():
@@ -136,6 +137,13 @@ class MigrationManager:
             if not ok:
                 raise DatabaseIntegrityError(
                     f"SQLite integrity_check failed; migration aborted: {detail}"
+                )
+            if current == CURRENT_REVISION and not legacy:
+                return MigrationReport(
+                    revision=current,
+                    schema_version=CURRENT_SCHEMA_VERSION,
+                    legacy_stamped=False,
+                    backup_path=None,
                 )
             backup_path = self.backup("pre_migration")
 
