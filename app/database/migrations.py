@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import shutil
 import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -55,7 +56,7 @@ class MigrationManager:
         if db_path is None or not db_path.exists():
             return True, "new database"
         try:
-            with sqlite3.connect(str(db_path)) as conn:
+            with closing(sqlite3.connect(str(db_path))) as conn:
                 row = conn.execute("PRAGMA integrity_check").fetchone()
         except sqlite3.DatabaseError as exc:
             return False, str(exc)
@@ -72,7 +73,8 @@ class MigrationManager:
         target_dir.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
         target = target_dir / f"{self.db_path.stem}_{reason}_{stamp}{self.db_path.suffix or '.db'}"
-        with sqlite3.connect(str(self.db_path)) as source, sqlite3.connect(str(target)) as dest:
+        with closing(sqlite3.connect(str(self.db_path))) as source, \
+                closing(sqlite3.connect(str(target))) as dest:
             source.backup(dest)
         return target
 
@@ -94,7 +96,7 @@ class MigrationManager:
         if self.db_path is None or not self.db_path.exists():
             return None
         try:
-            with sqlite3.connect(str(self.db_path)) as conn:
+            with closing(sqlite3.connect(str(self.db_path))) as conn:
                 tables = {row[0] for row in conn.execute(
                     "SELECT name FROM sqlite_master WHERE type='table'"
                 )}
