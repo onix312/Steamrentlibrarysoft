@@ -407,6 +407,12 @@ class DropsService:
             )
             ok = result.rowcount == 1
             if ok:
+                session.execute(
+                    update(models.StockUnit)
+                    .where(models.StockUnit.payload_ref == f"twitch_account:{account_id}",
+                           models.StockUnit.status.in_(["ready", "listed"]))
+                    .values(status="reserved", order_id=order_id, reserved_at=now)
+                )
                 self.audit.log("drop_account.reserved", Actor.APP, entity="twitch_account",
                                 entity_id=account_id, session=session, order_id=order_id)
         self.events.publish(TOPIC_DATA_CHANGED, section="drops")
@@ -422,6 +428,12 @@ class DropsService:
             )
             ok = result.rowcount == 1
             if ok:
+                session.execute(
+                    update(models.StockUnit)
+                    .where(models.StockUnit.payload_ref == f"twitch_account:{account_id}",
+                           models.StockUnit.status == "reserved")
+                    .values(status="ready", order_id=None, reserved_at=None)
+                )
                 self.audit.log("drop_account.released", Actor.APP, entity="twitch_account",
                                 entity_id=account_id, session=session)
         self.events.publish(TOPIC_DATA_CHANGED, section="drops")
@@ -437,6 +449,12 @@ class DropsService:
             )
             ok = result.rowcount == 1
             if ok:
+                session.execute(
+                    update(models.StockUnit)
+                    .where(models.StockUnit.payload_ref == f"twitch_account:{account_id}",
+                           models.StockUnit.status == "reserved")
+                    .values(status="sold", sold_at=self.clock.now())
+                )
                 self.audit.log("drop_account.sold", Actor.APP, entity="twitch_account",
                                 entity_id=account_id, session=session)
         if ok and purge_credentials:
@@ -485,6 +503,110 @@ class DropsService:
             "estimated_value": self.account_value(account_id),
             "notes": "Секреты передаются через системное хранилище; после продажи — удаляются.",
         }
+
+    def sync_stock_unit(self, account_id: int, product_id: int) -> models.StockUnit:
+        """Link a READY/active Drops account to the universal digital stock."""
+        payload_ref = f"twitch_account:{account_id}"
+        with self.db.session() as session:
+            account = session.get(models.TwitchAccount, account_id)
+            product = session.get(models.Product, product_id)
+            if account is None:
+                raise DomainError("Drops account not found.")
+            if product is None:
+                raise DomainError("Product not found.")
+            unit = session.scalar(
+                select(models.StockUnit).where(models.StockUnit.payload_ref == payload_ref)
+            )
+            status_map = {
+                TwitchAccountStatus.READY.value: "ready",
+                TwitchAccountStatus.LISTED.value: "listed",
+                TwitchAccountStatus.RESERVED.value: "reserved",
+                TwitchAccountStatus.SOLD.value: "sold",
+            }
+            target_status = status_map.get(account.status, "preparing")
+            if unit is None:
+                unit = models.StockUnit(
+                    product_id=product_id,
+                    payload_ref=payload_ref,
+                    status=target_status,
+                    created_at=self.clock.now(),
+                    order_id=account.reserved_order_id,
+                )
+                session.add(unit)
+                session.flush()
+            else:
+                unit.product_id = product_id
+                unit.status = target_status
+                unit.order_id = account.reserved_order_id
+            unit_id = unit.id
+            self.audit.log("drops.stock_synced", Actor.APP, entity="stock_unit",
+                           entity_id=unit_id, session=session, account_id=account_id,
+                           product_id=product_id)
+        self.events.publish(TOPIC_DATA_CHANGED, section="stock")
+        return self._get(models.StockUnit, unit_id)
+
+    def unified_inventory(self) -> list[dict]:
+        """Campaign -> Account -> StockUnit view for Operations/UI."""
+        rows: list[dict] = []
+        with self.db.session() as session:
+            accounts = list(session.scalars(
+                select(models.TwitchAccount).order_by(models.TwitchAccount.id)
+            ))
+            for account in accounts:
+                progress_rows = session.execute(
+                    select(models.AccountCampaign, models.DropCampaign)
+                    .join(models.DropCampaign,
+                          models.DropCampaign.id == models.AccountCampaign.campaign_id)
+                    .where(models.AccountCampaign.account_id == account.id)
+                ).all()
+                stock = session.scalar(
+                    select(models.StockUnit)
+                    .where(models.StockUnit.payload_ref == f"twitch_account:{account.id}")
+                    .order_by(models.StockUnit.id.desc())
+                    .limit(1)
+                )
+                rows.append({
+                    "account_id": account.id,
+                    "account": account.display_name,
+                    "status": account.status,
+                    "browser_profile_id": account.browser_profile_id,
+                    "estimated_value": self.account_value(account.id),
+                    "stock_unit_id": stock.id if stock else None,
+                    "stock_status": stock.status if stock else None,
+                    "campaigns": [
+                        {
+                            "campaign_id": campaign.id,
+                            "game": campaign.game_name,
+                            "name": campaign.campaign_name,
+                            "claimed": progress.claimed_count,
+                            "rewards": campaign.reward_count,
+                            "verified_minutes": progress.verified_minutes,
+                            "required_minutes": campaign.required_minutes,
+                        }
+                        for progress, campaign in progress_rows
+                    ],
+                })
+        return rows
+
+    def production_queue(self) -> list[dict]:
+        """Rank campaign/account work by deadline and value/hour."""
+        campaigns = self.campaign_priorities()
+        accounts = [a for a in self.accounts()
+                    if a.status in (TwitchAccountStatus.IDLE.value,
+                                    TwitchAccountStatus.WATCHING.value,
+                                    TwitchAccountStatus.CLAIM_REQUIRED.value)]
+        queue = []
+        for campaign, score in campaigns:
+            queue.append({
+                "campaign_id": campaign.id,
+                "campaign": campaign.campaign_name,
+                "game": campaign.game_name,
+                "score": score,
+                "value_per_hour": round(self.value_per_hour(campaign), 2),
+                "ends_at": campaign.ends_at,
+                "candidate_accounts": [a.id for a in accounts],
+            })
+        return queue
 
     # -------------------------------------------------------------- служебное
     def _account_transition(self, account_id: int, from_statuses: list[TwitchAccountStatus],
