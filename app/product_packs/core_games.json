@@ -1,0 +1,368 @@
+{
+  "name": "core-games",
+  "version": 1,
+  "game": "Multi",
+  "enabled": true,
+  "products": [
+    {
+      "code": "PZ_SERVER_CONFIG",
+      "name": "Project Zomboid — Server Config",
+      "game": "Project Zomboid",
+      "type": "auto",
+      "automation_level": "A4",
+      "workflow_code": "auto_delivery",
+      "engine": "config_factory",
+      "price": 149,
+      "minimum_price": 99,
+      "stock_mode": "stock",
+      "target_stock": 5,
+      "enabled": true,
+      "estimated_manual_minutes": 0,
+      "payload_template": {
+        "game": "Project Zomboid"
+      }
+    },
+    {
+      "code": "PZ_MOD_FIX",
+      "name": "Project Zomboid — Mod Doctor",
+      "game": "Project Zomboid",
+      "type": "semi_auto",
+      "automation_level": "A3",
+      "workflow_code": "semi_auto_doctor",
+      "engine": "mod_doctor",
+      "price": 499,
+      "minimum_price": 349,
+      "stock_mode": "none",
+      "target_stock": 0,
+      "enabled": true,
+      "estimated_manual_minutes": 10,
+      "payload_template": {
+        "game": "Project Zomboid"
+      }
+    },
+    {
+      "code": "PZ_SERVER_FIX",
+      "name": "Project Zomboid — Server Doctor",
+      "game": "Project Zomboid",
+      "type": "semi_auto",
+      "automation_level": "A3",
+      "workflow_code": "semi_auto_doctor",
+      "engine": "server_doctor",
+      "price": 699,
+      "minimum_price": 499,
+      "stock_mode": "none",
+      "target_stock": 0,
+      "enabled": true,
+      "estimated_manual_minutes": 10,
+      "payload_template": {
+        "game": "Project Zomboid"
+      }
+    },
+    {
+      "code": "MC_SERVER_CONFIG",
+      "name": "Minecraft — Server Config",
+      "game": "Minecraft",
+      "type": "auto",
+      "automation_level": "A4",
+      "workflow_code": "auto_delivery",
+      "engine": "config_factory",
+      "price": 149,
+      "minimum_price": 99,
+      "stock_mode": "stock",
+      "target_stock": 5,
+      "enabled": true,
+      "estimated_manual_minutes": 0,
+      "payload_template": {
+        "game": "Minecraft"
+      }
+    },
+    {
+      "code": "MC_MOD_FIX",
+      "name": "Minecraft — Modpack Doctor",
+      "game": "Minecraft",
+      "type": "semi_auto",
+      "automation_level": "A3",
+      "workflow_code": "semi_auto_doctor",
+      "engine": "mod_doctor",
+      "price": 599,
+      "minimum_price": 399,
+      "stock_mode": "none",
+      "target_stock": 0,
+      "enabled": true,
+      "estimated_manual_minutes": 10,
+      "payload_template": {
+        "game": "Minecraft"
+      }
+    },
+    {
+      "code": "7DTD_SERVER",
+      "name": "7 Days to Die — Server Config",
+      "game": "7 Days to Die",
+      "type": "auto",
+      "automation_level": "A4",
+      "workflow_code": "auto_delivery",
+      "engine": "config_factory",
+      "price": 199,
+      "minimum_price": 129,
+      "stock_mode": "stock",
+      "target_stock": 5,
+      "enabled": true,
+      "estimated_manual_minutes": 0,
+      "payload_template": {
+        "game": "7 Days to Die"
+      }
+    },
+    {
+      "code": "TERRARIA_SERVER",
+      "name": "Terraria — Server Config",
+      "game": "Terraria",
+      "type": "auto",
+      "automation_level": "A4",
+      "workflow_code": "auto_delivery",
+      "engine": "config_factory",
+      "price": 149,
+      "minimum_price": 99,
+      "stock_mode": "stock",
+      "target_stock": 5,
+      "enabled": true,
+      "estimated_manual_minutes": 0,
+      "payload_template": {
+        "game": "Terraria"
+      }
+    },
+    {
+      "code": "VALHEIM_SERVER",
+      "name": "Valheim — Server Config",
+      "game": "Valheim",
+      "type": "auto",
+      "automation_level": "A4",
+      "workflow_code": "auto_delivery",
+      "engine": "config_factory",
+      "price": 199,
+      "minimum_price": 129,
+      "stock_mode": "stock",
+      "target_stock": 5,
+      "enabled": true,
+      "estimated_manual_minutes": 0,
+      "payload_template": {
+        "game": "Valheim"
+      }
+    },
+    {
+      "code": "ENSHROUDED_SERVER",
+      "name": "Enshrouded — Server Setup",
+      "game": "Enshrouded",
+      "type": "semi_auto",
+      "automation_level": "A3",
+      "workflow_code": "server_setup",
+      "engine": "server_doctor",
+      "price": 799,
+      "minimum_price": 549,
+      "stock_mode": "none",
+      "target_stock": 0,
+      "enabled": true,
+      "estimated_manual_minutes": 10,
+      "payload_template": {
+        "game": "Enshrouded"
+      }
+    },
+    {
+      "code": "PALWORLD_SERVER",
+      "name": "Palworld — Server Config",
+      "game": "Palworld",
+      "type": "auto",
+      "automation_level": "A4",
+      "workflow_code": "auto_delivery",
+      "engine": "config_factory",
+      "price": 249,
+      "minimum_price": 169,
+      "stock_mode": "stock",
+      "target_stock": 5,
+      "enabled": true,
+      "estimated_manual_minutes": 0,
+      "payload_template": {
+        "game": "Palworld"
+      }
+    },
+    {
+      "code": "SPACE_ENGINEERS_SERVER",
+      "name": "Space Engineers — Server Config",
+      "game": "Space Engineers",
+      "type": "auto",
+      "automation_level": "A4",
+      "workflow_code": "auto_delivery",
+      "engine": "config_factory",
+      "price": 249,
+      "minimum_price": 169,
+      "stock_mode": "stock",
+      "target_stock": 5,
+      "enabled": true,
+      "estimated_manual_minutes": 0,
+      "payload_template": {
+        "game": "Space Engineers"
+      }
+    },
+    {
+      "code": "RIMWORLD_MOD_FIX",
+      "name": "RimWorld — Mod Doctor",
+      "game": "RimWorld",
+      "type": "semi_auto",
+      "automation_level": "A3",
+      "workflow_code": "semi_auto_doctor",
+      "engine": "mod_doctor",
+      "price": 499,
+      "minimum_price": 349,
+      "stock_mode": "none",
+      "target_stock": 0,
+      "enabled": true,
+      "estimated_manual_minutes": 10,
+      "payload_template": {
+        "game": "RimWorld"
+      }
+    },
+    {
+      "code": "ARK_SERVER",
+      "name": "ARK — Server Config",
+      "game": "ARK",
+      "type": "auto",
+      "automation_level": "A4",
+      "workflow_code": "auto_delivery",
+      "engine": "config_factory",
+      "price": 249,
+      "minimum_price": 169,
+      "stock_mode": "stock",
+      "target_stock": 5,
+      "enabled": true,
+      "estimated_manual_minutes": 0,
+      "payload_template": {
+        "game": "ARK"
+      }
+    },
+    {
+      "code": "RON_GAME_FIX",
+      "name": "Ready or Not — Game Doctor",
+      "game": "Ready or Not",
+      "type": "semi_auto",
+      "automation_level": "A3",
+      "workflow_code": "semi_auto_doctor",
+      "engine": "game_doctor",
+      "price": 499,
+      "minimum_price": 349,
+      "stock_mode": "none",
+      "target_stock": 0,
+      "enabled": true,
+      "estimated_manual_minutes": 10,
+      "payload_template": {
+        "game": "Ready or Not"
+      }
+    },
+    {
+      "code": "PHAS_GAME_FIX",
+      "name": "Phasmophobia — Game Doctor",
+      "game": "Phasmophobia",
+      "type": "semi_auto",
+      "automation_level": "A3",
+      "workflow_code": "semi_auto_doctor",
+      "engine": "game_doctor",
+      "price": 399,
+      "minimum_price": 299,
+      "stock_mode": "none",
+      "target_stock": 0,
+      "enabled": true,
+      "estimated_manual_minutes": 10,
+      "payload_template": {
+        "game": "Phasmophobia"
+      }
+    },
+    {
+      "code": "REPO_GAME_FIX",
+      "name": "R.E.P.O. — Game Doctor",
+      "game": "R.E.P.O.",
+      "type": "semi_auto",
+      "automation_level": "A3",
+      "workflow_code": "semi_auto_doctor",
+      "engine": "game_doctor",
+      "price": 399,
+      "minimum_price": 299,
+      "stock_mode": "none",
+      "target_stock": 0,
+      "enabled": true,
+      "estimated_manual_minutes": 10,
+      "payload_template": {
+        "game": "R.E.P.O."
+      }
+    },
+    {
+      "code": "FOREST_SAVE",
+      "name": "The Forest — Save Doctor",
+      "game": "The Forest",
+      "type": "semi_auto",
+      "automation_level": "A3",
+      "workflow_code": "semi_auto_doctor",
+      "engine": "save_doctor",
+      "price": 399,
+      "minimum_price": 299,
+      "stock_mode": "none",
+      "target_stock": 0,
+      "enabled": true,
+      "estimated_manual_minutes": 10,
+      "payload_template": {
+        "game": "The Forest"
+      }
+    },
+    {
+      "code": "RAFT_SAVE",
+      "name": "Raft — Save Doctor",
+      "game": "Raft",
+      "type": "semi_auto",
+      "automation_level": "A3",
+      "workflow_code": "semi_auto_doctor",
+      "engine": "save_doctor",
+      "price": 399,
+      "minimum_price": 299,
+      "stock_mode": "none",
+      "target_stock": 0,
+      "enabled": true,
+      "estimated_manual_minutes": 10,
+      "payload_template": {
+        "game": "Raft"
+      }
+    },
+    {
+      "code": "DST_SERVER",
+      "name": "Don't Starve Together — Server Config",
+      "game": "Don't Starve Together",
+      "type": "auto",
+      "automation_level": "A4",
+      "workflow_code": "auto_delivery",
+      "engine": "config_factory",
+      "price": 199,
+      "minimum_price": 129,
+      "stock_mode": "stock",
+      "target_stock": 5,
+      "enabled": true,
+      "estimated_manual_minutes": 0,
+      "payload_template": {
+        "game": "Don't Starve Together"
+      }
+    },
+    {
+      "code": "RUST_SERVER_CONFIG",
+      "name": "Rust — Server Config",
+      "game": "Rust",
+      "type": "auto",
+      "automation_level": "A4",
+      "workflow_code": "auto_delivery",
+      "engine": "config_factory",
+      "price": 249,
+      "minimum_price": 169,
+      "stock_mode": "stock",
+      "target_stock": 5,
+      "enabled": true,
+      "estimated_manual_minutes": 0,
+      "payload_template": {
+        "game": "Rust"
+      }
+    }
+  ]
+}
