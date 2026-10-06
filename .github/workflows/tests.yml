@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: ["main", "feature/**", "arena/**"]
+    branches: ["main"]
   pull_request:
 
 permissions:
@@ -19,6 +19,7 @@ jobs:
     env:
       QT_QPA_PLATFORM: offscreen
       PYTHONUTF8: "1"
+      PYTHONPATH: ${{ github.workspace }}
 
     steps:
       - uses: actions/checkout@v4
