@@ -7,7 +7,7 @@ from typing import Iterator
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session, close_all_sessions, sessionmaker
 
 from app.database.migrations import MigrationManager, MigrationReport
 
@@ -64,3 +64,9 @@ class Database:
         self.engine = create_engine(self.url, future=True)
         self.session_factory.configure(bind=self.engine)
         self.migration_report = self.migrations.upgrade()
+
+
+    def close(self) -> None:
+        """Close every SQLAlchemy Session and release SQLite file handles."""
+        close_all_sessions()
+        self.engine.dispose()
