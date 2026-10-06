@@ -35,6 +35,7 @@ from app.ui.pages.leases import LeasesPage
 from app.ui.pages.market_page import MarketPage
 from app.ui.pages.notifications import NotificationsPage
 from app.ui.pages.orders import OrdersPage
+from app.ui.pages.operations import OperationsPage
 from app.ui.pages.products import ProductsPage
 from app.ui.pages.queue_page import QueuePage
 from app.ui.pages.revenue_page import RevenuePage
@@ -48,6 +49,7 @@ from app.ui.widgets import Pill
 log = logging.getLogger(__name__)
 
 NAV_ITEMS = [
+    ("operations", "⚡  Operations"),
     ("dashboard", "🏠  Dashboard"),
     ("orders", "📦  Заказы"),
     ("library", "🎮  Библиотека"),
@@ -100,7 +102,7 @@ class MainWindow(QMainWindow):
         self._lease_timer.timeout.connect(self._tick_leases)
         self._lease_timer.start()
 
-        self._switch_to("dashboard")
+        self._switch_to("operations")
 
     # ---------------------------------------------------------------- layout
     def _build_layout(self) -> None:
@@ -142,7 +144,7 @@ class MainWindow(QMainWindow):
 
         self.stack = QStackedWidget()
         page_defs = [
-            ("dashboard", DashboardPage), ("orders", OrdersPage), ("library", LibraryPage),
+            ("operations", OperationsPage), ("dashboard", DashboardPage), ("orders", OrdersPage), ("library", LibraryPage),
             ("steam", SteamPage), ("funpay", FunPayPage),
             ("products", ProductsPage), ("stock", StockPage), ("workflows", WorkflowsPage),
             ("market", MarketPage), ("drops", DropsPage), ("drops_sessions", DropsSessionsPage),
