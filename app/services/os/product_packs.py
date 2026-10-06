@@ -69,10 +69,39 @@ class ProductPackService:
             return []
         return [load_pack(path) for path in sorted(self.packs_dir.glob("*.json"))]
 
+    def games(self) -> list[str]:
+        return sorted({
+            str(item.get("game") or pack.game)
+            for pack in self.available()
+            for item in pack.products
+        })
+
     def import_all(self) -> dict:
         result = {"created": 0, "updated": 0, "disabled": 0, "packs": 0}
         for pack in self.available():
             report = self.import_pack(pack)
+            result["packs"] += 1
+            for key in ("created", "updated", "disabled"):
+                result[key] += report[key]
+        return result
+
+    def import_game(self, game: str) -> dict:
+        result = {"created": 0, "updated": 0, "disabled": 0, "packs": 0}
+        for pack in self.available():
+            products = [
+                item for item in pack.products
+                if str(item.get("game") or pack.game) == game
+            ]
+            if not products:
+                continue
+            scoped = ProductPack(
+                name=pack.name,
+                version=pack.version,
+                game=game,
+                products=products,
+                enabled=pack.enabled,
+            )
+            report = self.import_pack(scoped)
             result["packs"] += 1
             for key in ("created", "updated", "disabled"):
                 result[key] += report[key]
