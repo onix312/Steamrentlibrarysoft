@@ -158,6 +158,11 @@ class MainWindow(QMainWindow):
             page = page_cls(self.ctx)
             self.pages[key] = page
             self.stack.addWidget(page)
+
+        operations_page = self.pages.get("operations")
+        if isinstance(operations_page, OperationsPage):
+            operations_page.navigate_requested.connect(self._switch_to)
+
         root.addWidget(self.stack, 1)
         self.setCentralWidget(central)
 
