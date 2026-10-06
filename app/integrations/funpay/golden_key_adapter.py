@@ -24,6 +24,10 @@ from app.core.secret_store import SecretStore
 from app.domain.enums import Capability
 from app.domain.value_objects import CapabilityError
 from app.integrations.funpay.base import FunPayAdapter, FunPayOrderDTO
+from app.integrations.funpay.protocol_health import (
+    GLOBAL_FUNPAY_BREAKER,
+    CircuitState,
+)
 from app.integrations.funpay.golden_key_client import (
     FloodError,
     GoldenKeyClient,
@@ -73,8 +77,13 @@ class GoldenKeyFunPayAdapter(FunPayAdapter):
             "в чат. Риски ограничений аккаунта — на операторе."
         )
 
-    def client(self) -> GoldenKeyClient:
-        """Ленивый клиент. Только при включённом режиме и сохранённом ключе."""
+    def client(self, *, ignore_breaker: bool = False) -> GoldenKeyClient:
+        """Ленивый клиент. Автоматические действия блокируются circuit breaker."""
+        if not ignore_breaker:
+            try:
+                GLOBAL_FUNPAY_BREAKER.ensure_available()
+            except RuntimeError as exc:
+                raise CapabilityError(str(exc)) from exc
         if not self.is_enabled():
             raise CapabilityError(
                 "Неофициальный доступ не включён (Настройки → FunPay)."
@@ -85,8 +94,53 @@ class GoldenKeyFunPayAdapter(FunPayAdapter):
                                            user_agent=self._settings.user_agent or None)
         return self._client
 
+    def _record_protocol_error(self, exc: Exception) -> None:
+        text = str(exc).lower()
+        protocol_markers = ("разобрать", "ожидаем", "json", "markup", "selector", "protocol")
+        if any(marker in text for marker in protocol_markers):
+            GLOBAL_FUNPAY_BREAKER.trip(str(exc))
+
+    def protocol_health(self, node_id: int | str | None = None) -> dict:
+        """Safe read-only runtime probe. Any unexpected parser failure pauses automation."""
+        checks = {"auth": "unknown", "orders": "unknown", "chat": "unknown",
+                  "runner": "unknown", "lots": "skipped"}
+        client = self.client(ignore_breaker=True)
+        try:
+            client.init()
+            checks["auth"] = "ok"
+            client.get_sales(max_pages=1)
+            checks["orders"] = "ok"
+            client.get_chats(max_chats=1)
+            checks["chat"] = "ok"
+            checks["runner"] = "ok"  # chat_bookmarks is delivered through runner
+            if node_id is not None:
+                client.get_own_lots(node_id)
+                checks["lots"] = "ok"
+        except UnauthorizedError:
+            checks["auth"] = "unauthorized"
+            raise
+        except FloodError:
+            raise
+        except GoldenKeyError as exc:
+            GLOBAL_FUNPAY_BREAKER.trip(str(exc))
+            checks["error"] = str(exc)
+            return {"ok": False, "checks": checks, "breaker": GLOBAL_FUNPAY_BREAKER.state.value}
+        GLOBAL_FUNPAY_BREAKER.reset()
+        return {"ok": True, "checks": checks, "breaker": GLOBAL_FUNPAY_BREAKER.state.value}
+
     # -------------------------------------------------------- capabilities
     def capabilities(self) -> dict[str, Capability]:
+        if GLOBAL_FUNPAY_BREAKER.state == CircuitState.OPEN:
+            return {
+                "get_orders": Capability.UNSUPPORTED,
+                "get_messages": Capability.UNSUPPORTED,
+                "get_listings": Capability.UNSUPPORTED,
+                "update_listing": Capability.MANUAL,
+                "create_listing": Capability.MANUAL,
+                "send_message": Capability.MANUAL,
+                "read_only_polling": Capability.UNSUPPORTED,
+                "prepare_texts": Capability.AVAILABLE,
+            }
         if not self.is_enabled():
             polling = Capability.UNSUPPORTED
             orders = Capability.UNSUPPORTED
@@ -112,11 +166,13 @@ class GoldenKeyFunPayAdapter(FunPayAdapter):
     def check_connection(self) -> dict:
         """Инициализация сессии: проверяет ключ и сообщает данные аккаунта."""
         try:
-            client = self.client()
+            client = self.client(ignore_breaker=True)
             client.init()
+            GLOBAL_FUNPAY_BREAKER.reset()
         except UnauthorizedError as exc:
             raise CapabilityError(f"FunPay не принял доступ: {exc}") from exc
         except GoldenKeyError as exc:
+            self._record_protocol_error(exc)
             raise CapabilityError(f"Ошибка доступа к FunPay: {exc}") from exc
         return {"username": client.username, "user_id": client.user_id}
 
@@ -130,6 +186,7 @@ class GoldenKeyFunPayAdapter(FunPayAdapter):
         except FloodError as exc:
             raise CapabilityError(f"FunPay ограничил частоту запросов: {exc}") from exc
         except GoldenKeyError as exc:
+            self._record_protocol_error(exc)
             raise CapabilityError(f"Ошибка доступа к FunPay: {exc}") from exc
         return [
             FunPayOrderDTO(
@@ -157,6 +214,7 @@ class GoldenKeyFunPayAdapter(FunPayAdapter):
         except FloodError as exc:
             raise CapabilityError(f"FunPay ограничил частоту запросов: {exc}") from exc
         except GoldenKeyError as exc:
+            self._record_protocol_error(exc)
             raise CapabilityError(f"Ошибка доступа к чатам: {exc}") from exc
 
         unread = [chat for chat in chats if chat.unread][:MAX_UNREAD_CHATS]
@@ -191,6 +249,7 @@ class GoldenKeyFunPayAdapter(FunPayAdapter):
         except FloodError as exc:
             raise CapabilityError(f"FunPay ограничил частоту запросов: {exc}") from exc
         except GoldenKeyError as exc:
+            self._record_protocol_error(exc)
             raise CapabilityError(f"Ошибка чтения лотов: {exc}") from exc
         return [
             FunPayListingDTO(external_id=lot.lot_id, title=lot.description,
@@ -214,6 +273,7 @@ class GoldenKeyFunPayAdapter(FunPayAdapter):
         except FloodError as exc:
             raise CapabilityError(f"FunPay ограничил частоту запросов: {exc}") from exc
         except GoldenKeyError as exc:
+            self._record_protocol_error(exc)
             raise CapabilityError(f"Не удалось изменить лот: {exc}") from exc
 
     def create_listing(self, node_id: int | str, title: str, description: str,
@@ -226,6 +286,7 @@ class GoldenKeyFunPayAdapter(FunPayAdapter):
         except FloodError as exc:
             raise CapabilityError(f"FunPay ограничил частоту запросов: {exc}") from exc
         except GoldenKeyError as exc:
+            self._record_protocol_error(exc)
             raise CapabilityError(f"Не удалось создать лот: {exc}") from exc
 
     def close_listing(self, listing_id: str) -> None:
@@ -242,6 +303,7 @@ class GoldenKeyFunPayAdapter(FunPayAdapter):
         except FloodError as exc:
             raise CapabilityError(f"FunPay ограничил частоту запросов: {exc}") from exc
         except GoldenKeyError as exc:
+            self._record_protocol_error(exc)
             raise CapabilityError(f"Не удалось изменить активность лота: {exc}") from exc
 
     # ------------------------------------------------------------- отправка
@@ -269,6 +331,7 @@ class GoldenKeyFunPayAdapter(FunPayAdapter):
         try:
             sales = self.client().get_sales()
         except GoldenKeyError as exc:
+            self._record_protocol_error(exc)
             raise CapabilityError(f"Ошибка доступа к FunPay: {exc}") from exc
         return next((s for s in sales if s.order_id == order_id.lstrip("#")), None)
 
@@ -276,6 +339,7 @@ class GoldenKeyFunPayAdapter(FunPayAdapter):
         try:
             sales = self.client().get_sales()
         except GoldenKeyError as exc:
+            self._record_protocol_error(exc)
             raise CapabilityError(f"Ошибка доступа к FunPay: {exc}") from exc
         open_sales = [s for s in sales if s.status == "paid"] or sales
         return next((s for s in open_sales if s.buyer_username == username), None)
@@ -288,4 +352,5 @@ class GoldenKeyFunPayAdapter(FunPayAdapter):
         except FloodError as exc:
             raise CapabilityError(f"FunPay ограничил частоту отправки: {exc}") from exc
         except GoldenKeyError as exc:
+            self._record_protocol_error(exc)
             raise CapabilityError(f"Не удалось отправить сообщение: {exc}") from exc
