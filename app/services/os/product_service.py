@@ -65,12 +65,23 @@ class ProductService:
         return self.packs.games()
 
     def create_from_factory(self, game: str) -> list[models.Product]:
-        """Импортирует/обновляет pack для игры, сохраняя ручные цены."""
+        """Import/update a game pack and return only newly created products.
+
+        Existing products are still refreshed from the pack, but operator-controlled
+        price/minimum_price remain untouched.
+        """
+        with self.db.session() as session:
+            existing_codes = set(session.scalars(
+                select(models.Product.code).where(models.Product.game == game)
+            ))
         self.packs.import_game(game)
         with self.db.session() as session:
             return list(session.scalars(
                 select(models.Product)
-                .where(models.Product.game == game)
+                .where(
+                    models.Product.game == game,
+                    models.Product.code.not_in(existing_codes) if existing_codes else True,
+                )
                 .order_by(models.Product.id)
             ))
 
