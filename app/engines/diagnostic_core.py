@@ -54,7 +54,7 @@ def attachment_text(attachments: Iterable[dict]) -> str:
     return "\n".join(chunks)
 
 
-def enrich_case(case: DiagnosticCase) -> DiagnosticCase:
+def enrich_case(case: Any) -> Any:
     inputs = dict(case.inputs)
     extra = attachment_text(case.attachments)
     if extra:
@@ -71,5 +71,5 @@ def enrich_case(case: DiagnosticCase) -> DiagnosticCase:
     return replace(case, inputs=inputs)
 
 
-def plugin_recommendations(case: DiagnosticCase) -> list[str]:
+def plugin_recommendations(case: Any) -> list[str]:
     return list((case.inputs.get("plugin_recommendations") or []))
