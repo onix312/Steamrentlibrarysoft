@@ -9,7 +9,32 @@ def diagnose_save(inputs: dict) -> dict:
     confidence = 0.45
     category = "save_unknown"
 
-    if any(token in symptoms for token in ("corrupt", "checksum", "повреж", "invalid save")):
+    missing_mods = inputs.get("missing_mods") or []
+    if isinstance(missing_mods, str):
+        missing_mods = [missing_mods]
+    game_version = inputs.get("game_version")
+    save_version = inputs.get("save_version")
+
+    if missing_mods:
+        category = "mod_reference"
+        confidence = 0.94
+        evidence.append("missing_mods: " + ", ".join(map(str, missing_mods[:10])))
+        recommendations.extend([
+            "Восстановите точные версии отсутствующих модов.",
+            "Загрузите копию save и удаляйте зависимости только штатным способом игры.",
+        ])
+    elif game_version and save_version and str(game_version) != str(save_version):
+        category = "version_mismatch"
+        confidence = 0.92
+        evidence.extend([
+            f"game_version={game_version}",
+            f"save_version={save_version}",
+        ])
+        recommendations.append(
+            "Откройте копию save на совместимой версии и выполните штатную миграцию."
+        )
+
+    if category == "save_unknown" and any(token in symptoms for token in ("corrupt", "checksum", "повреж", "invalid save")):
         category = "corruption"
         confidence = 0.85
         evidence.append("Есть признаки повреждения/ошибки целостности сохранения.")
@@ -18,7 +43,7 @@ def diagnose_save(inputs: dict) -> dict:
             "Проверьте последний автоматический/ручной backup.",
             "Сравните версию игры и версию сохранения.",
         ])
-    elif any(token in symptoms for token in ("mod", "missing asset", "missing class", "workshop")):
+    elif category == "save_unknown" and any(token in symptoms for token in ("mod", "missing asset", "missing class", "workshop")):
         category = "mod_reference"
         confidence = 0.78
         evidence.append("Сохранение ссылается на отсутствующий/несовместимый мод.")
@@ -26,7 +51,7 @@ def diagnose_save(inputs: dict) -> dict:
             "Восстановите точный набор модов/версий, с которым создавался save.",
             "После успешного запуска удаляйте зависимости штатным способом игры.",
         ])
-    elif any(token in symptoms for token in ("version", "downgrade", "newer version")):
+    elif category == "save_unknown" and any(token in symptoms for token in ("version", "downgrade", "newer version")):
         category = "version_mismatch"
         confidence = 0.8
         evidence.append("Версия save не совпадает с версией игры.")
@@ -51,4 +76,5 @@ def diagnose_save(inputs: dict) -> dict:
         "fix": "\n".join(recommendations),
         "rollback": "Всегда сохраняйте исходный save неизменным; работайте с копией.",
         "risk": "medium",
+        "backup_available": bool(inputs.get("backup_available")),
     }
