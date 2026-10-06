@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Iterable
+from typing import Any, Iterable
 
-from app.engines.registry import DiagnosticCase
 
 MAX_ATTACHMENT_CHARS = 250_000
 
