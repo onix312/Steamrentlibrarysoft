@@ -21,7 +21,10 @@ def clock() -> FixedClock:
 def ctx(tmp_path, clock):
     """Свежий контекст приложения на временной директории."""
     context = build_context(tmp_path / "data", clock=clock)
-    yield context
+    try:
+        yield context
+    finally:
+        context.shutdown()
 
 
 @pytest.fixture
