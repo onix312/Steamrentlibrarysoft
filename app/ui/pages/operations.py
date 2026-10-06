@@ -1,6 +1,7 @@
 """Operations Center: one prioritized screen for everything requiring attention."""
 from __future__ import annotations
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QGridLayout, QVBoxLayout, QWidget
 
 from app.ui.pages.base import BasePage, page_header
@@ -9,6 +10,7 @@ from app.ui.widgets import StatCard, fill_cell, make_table
 
 class OperationsPage(BasePage):
     title = "Operations"
+    navigate_requested = Signal(str)
 
     def __init__(self, ctx, parent=None) -> None:
         super().__init__(ctx, parent)
@@ -42,6 +44,8 @@ class OperationsPage(BasePage):
         self.table.setColumnWidth(2, 280)
         self.table.setColumnWidth(3, 480)
         self.table.setColumnWidth(4, 140)
+        self.table.setToolTip("Двойной клик по строке — открыть соответствующий раздел")
+        self.table.cellDoubleClicked.connect(self._open_action)
         root.addWidget(self.table, 1)
 
     def refresh(self) -> None:
@@ -57,3 +61,12 @@ class OperationsPage(BasePage):
             fill_cell(self.table, row, 2, action.title)
             fill_cell(self.table, row, 3, action.detail)
             fill_cell(self.table, row, 4, action.section)
+
+
+    def _open_action(self, row: int, _column: int) -> None:
+        section_item = self.table.item(row, 4)
+        if section_item is None:
+            return
+        section = section_item.text().strip()
+        if section:
+            self.navigate_requested.emit(section)
