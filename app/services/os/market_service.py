@@ -123,7 +123,7 @@ class MarketService:
             rows = list(session.scalars(
                 select(models.MarketSnapshot)
                 .where(models.MarketSnapshot.game_name == game_name)
-                .order_by(models.MarketSnapshot.captured_at.desc())
+                .order_by(models.MarketSnapshot.captured_at.desc(), models.MarketSnapshot.id.desc())
                 .limit(limit)
             ))
         return list(reversed(rows))
