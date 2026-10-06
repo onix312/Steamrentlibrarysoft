@@ -62,8 +62,13 @@ class ServerDoctorEngine(FulfillmentEngine):
     name = "server_doctor"
 
     def analyze(self, case: DiagnosticCase) -> dict:
+        case = enrich_case(case)
         result = server_doctor.diagnose(case.inputs)
-        result.setdefault("recommendations", [result.get("fix", "")] if result.get("fix") else [])
+        recommendations = list(result.get("recommendations") or [])
+        recommendations.extend(plugin_recommendations(case))
+        if not recommendations and result.get("fix"):
+            recommendations.append(result["fix"])
+        result["recommendations"] = recommendations
         return result
 
 
@@ -71,6 +76,7 @@ class ModDoctorEngine(FulfillmentEngine):
     name = "mod_doctor"
 
     def analyze(self, case: DiagnosticCase) -> dict:
+        case = enrich_case(case)
         raw = mod_doctor.analyze(case.inputs)
         issues = (
             raw.get("missing_dependencies", [])
@@ -99,13 +105,17 @@ class GameDoctorEngine(FulfillmentEngine):
     name = "game_doctor"
 
     def analyze(self, case: DiagnosticCase) -> dict:
-        return diagnose_game(case.inputs)
+        case = enrich_case(case)
+        result = diagnose_game(case.inputs)
+        result["recommendations"] = list(result.get("recommendations") or []) + plugin_recommendations(case)
+        return result
 
 
 class SaveDoctorEngine(FulfillmentEngine):
     name = "save_doctor"
 
     def analyze(self, case: DiagnosticCase) -> dict:
+        case = enrich_case(case)
         return diagnose_save(case.inputs)
 
 
