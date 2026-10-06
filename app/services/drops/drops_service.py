@@ -385,13 +385,18 @@ class DropsService:
         return ranked
 
     # ================================================================== сток
-    def mark_ready(self, account_id: int) -> None:
-        self._account_transition(account_id, [TwitchAccountStatus.IDLE, TwitchAccountStatus.COMPLETE,
-                                              TwitchAccountStatus.CLAIM_REQUIRED],
-                                 TwitchAccountStatus.READY)
+    def mark_ready(self, account_id: int) -> bool:
+        return self._account_transition(
+            account_id,
+            [TwitchAccountStatus.IDLE, TwitchAccountStatus.COMPLETE,
+             TwitchAccountStatus.CLAIM_REQUIRED],
+            TwitchAccountStatus.READY,
+        )
 
-    def mark_listed(self, account_id: int) -> None:
-        self._account_transition(account_id, [TwitchAccountStatus.READY], TwitchAccountStatus.LISTED)
+    def mark_listed(self, account_id: int) -> bool:
+        return self._account_transition(
+            account_id, [TwitchAccountStatus.READY], TwitchAccountStatus.LISTED
+        )
 
     def reserve_account(self, account_id: int, order_id: int | None = None) -> bool:
         """Атомарно: только один заказ может зарезервировать аккаунт."""
