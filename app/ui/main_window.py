@@ -84,7 +84,7 @@ class MainWindow(QMainWindow):
     def __init__(self, ctx) -> None:
         super().__init__()
         self.ctx = ctx
-        self.setWindowTitle("Steam Rent Manager — библиотека, семьи, FunPay")
+        self.setWindowTitle("FunPay Automation OS — Steam, Drops, Products")
         self.resize(1320, 860)
         self.setMinimumSize(1100, 720)
         self.setWindowIcon(_make_icon())
@@ -118,9 +118,9 @@ class MainWindow(QMainWindow):
         sidebar_layout.setContentsMargins(12, 16, 12, 12)
         sidebar_layout.setSpacing(3)
 
-        title = QLabel("Steam Rent")
+        title = QLabel("FunPay OS")
         title.setStyleSheet("font-size:18px; font-weight:800; letter-spacing:0.3px;")
-        subtitle = QLabel("Families → FunPay")
+        subtitle = QLabel("Automation Control Center")
         subtitle.setStyleSheet(f"color:{COLORS['text_muted']}; font-size:11px; margin-bottom:10px;")
         sidebar_layout.addWidget(title)
         sidebar_layout.addWidget(subtitle)
