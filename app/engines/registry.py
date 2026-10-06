@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.engines import config_factory, mod_doctor, server_doctor
+from app.engines.diagnostic_core import enrich_case, plugin_recommendations
 from app.engines.game_doctor import diagnose_game
 from app.engines.save_doctor import diagnose_save
 
