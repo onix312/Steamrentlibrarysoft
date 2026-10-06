@@ -1,5 +1,19 @@
 {
-  "version": 1,
+  "version": 2,
   "updated_at": "2026-10-06",
-  "entries": []
+  "entries": [
+    {"app_id": 108600, "name": "Project Zomboid", "kind": "allowed", "reason": "Проверено для Steam Families dataset", "verified": true},
+    {"app_id": 251570, "name": "7 Days to Die", "kind": "allowed", "reason": "Проверено для Steam Families dataset", "verified": true},
+    {"app_id": 242760, "name": "The Forest", "kind": "allowed", "reason": "Проверено для Steam Families dataset", "verified": true},
+    {"app_id": 648800, "name": "Raft", "kind": "allowed", "reason": "Проверено для Steam Families dataset", "verified": true},
+    {"app_id": 264710, "name": "Subnautica", "kind": "allowed", "reason": "Проверено для Steam Families dataset", "verified": true},
+    {"app_id": 739630, "name": "Phasmophobia", "kind": "allowed", "reason": "Проверено для Steam Families dataset", "verified": true},
+    {"app_id": 2096610, "name": "R.E.P.O.", "kind": "allowed", "reason": "Проверено для Steam Families dataset", "verified": true},
+    {"app_id": 2881650, "name": "Content Warning", "kind": "allowed", "reason": "Проверено для Steam Families dataset", "verified": true},
+    {"app_id": 1097840, "name": "The Outlast Trials", "kind": "allowed", "reason": "Проверено для Steam Families dataset", "verified": true},
+    {"app_id": 105600, "name": "Terraria", "kind": "allowed", "reason": "Проверено для Steam Families dataset", "verified": true},
+    {"app_id": 892970, "name": "Valheim", "kind": "allowed", "reason": "Проверено для Steam Families dataset", "verified": true},
+    {"app_id": 271590, "name": "Grand Theft Auto V", "kind": "excluded", "reason": "Сторонний launcher/account", "verified": true},
+    {"app_id": 1174180, "name": "Red Dead Redemption 2", "kind": "excluded", "reason": "Сторонний launcher/account", "verified": true}
+  ]
 }
