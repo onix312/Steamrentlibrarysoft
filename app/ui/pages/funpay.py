@@ -72,11 +72,14 @@ class FunPayPage(BasePage):
         self.poll_button.clicked.connect(self._poll_now)
         self.check_button = QPushButton("🔌 Проверить соединение")
         self.check_button.clicked.connect(self._check_connection)
+        self.health_button = QPushButton("🩺 Protocol Health")
+        self.health_button.clicked.connect(self._protocol_health)
         self.link_button = QPushButton("Привязать выбранный к продукту…")
         self.link_button.clicked.connect(self._link_order)
         import_buttons.addWidget(self.import_button)
         import_buttons.addWidget(self.poll_button)
         import_buttons.addWidget(self.check_button)
+        import_buttons.addWidget(self.health_button)
         import_buttons.addWidget(self.link_button)
         import_buttons.addStretch(1)
         import_layout.addLayout(import_buttons)
@@ -439,6 +442,23 @@ class FunPayPage(BasePage):
                 self, "Лоты",
                 f"Создано: {result['created']}, открыто: {result['opened']}, "
                 f"закрыто: {result['closed']}, цен обновлено: {result['repriced']}.\n{errors}")
+        self.refresh()
+
+    def _protocol_health(self) -> None:
+        nodes = list((self.ctx.config.funpay.lot_nodes or {}).values())
+        node_id = nodes[0] if nodes else None
+        result = self.ctx.funpay.protocol_health(node_id=node_id)
+        checks = result.get("checks") or {}
+        lines = [f"{name}: {status}" for name, status in checks.items()]
+        lines.append(f"breaker: {result.get('breaker', 'unknown')}")
+        text = "\n".join(lines)
+        if result.get("ok"):
+            QMessageBox.information(self, "FunPay Protocol Health", text)
+        else:
+            QMessageBox.warning(
+                self, "FunPay Protocol Health",
+                text + "\n\nАвтоматизация FunPay приостановлена до успешной проверки.",
+            )
         self.refresh()
 
     def _check_connection(self) -> None:

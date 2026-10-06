@@ -46,6 +46,16 @@ class FunPayService:
     def is_readonly_polling_available(self) -> bool:
         return self.adapter.capability("read_only_polling") == Capability.AVAILABLE
 
+    def protocol_health(self, node_id: int | str | None = None) -> dict:
+        adapter = self.adapter
+        checker = getattr(adapter, "protocol_health", None)
+        if checker is None:
+            return {"ok": True, "checks": {"mode": "manual"}, "breaker": "closed"}
+        try:
+            return checker(node_id=node_id)
+        except CapabilityError as exc:
+            return {"ok": False, "checks": {"error": str(exc)}, "breaker": "open"}
+
     def poll_orders(self) -> list:
         """Опрос своих заказов через адаптер (только чтение).
 

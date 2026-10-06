@@ -89,22 +89,31 @@ class MarketPage(BasePage):
         form_row.addLayout(right, 1)
         root.addLayout(form_row)
 
-        self.table = make_table(["ID", "Игра", "Конкур.", "Мин.", "Медиана", "Макс.", "Источник"])
-        for col, width in ((0, 40), (1, 240), (2, 80), (3, 90), (4, 90), (5, 90), (6, 100)):
+        self.table = make_table(["ID", "Игра", "Конкур.", "Мин.", "Медиана", "Δ медиана", "Решение", "Источник"])
+        for col, width in ((0, 40), (1, 220), (2, 80), (3, 80), (4, 90), (5, 100), (6, 100), (7, 100)):
             self.table.setColumnWidth(col, width)
         root.addWidget(self.table, 1)
 
     def refresh(self) -> None:
         snapshots = self.ctx.market.snapshots(limit=50)
         self.table.setRowCount(len(snapshots))
+        reports = {}
         for row, snapshot in enumerate(snapshots):
+            report = reports.setdefault(
+                snapshot.game_name,
+                self.ctx.market.opportunity_v2(snapshot.game_name),
+            )
+            trend = report.get("trend") or {}
             set_row_id(self.table, row, snapshot.id)
             fill_cell(self.table, row, 1, snapshot.game_name)
             fill_cell(self.table, row, 2, str(snapshot.competitors), align_right=True)
             fill_cell(self.table, row, 3, f"{snapshot.lowest_price:.0f}", align_right=True)
             fill_cell(self.table, row, 4, f"{snapshot.median_price:.0f}", align_right=True)
-            fill_cell(self.table, row, 5, f"{snapshot.highest_price:.0f}", align_right=True)
-            fill_cell(self.table, row, 6, snapshot.source)
+            fill_cell(self.table, row, 5, f"{trend.get('median_delta', 0):+.0f}", align_right=True)
+            decision = report.get("recommendation", "HOLD")
+            color = {"CREATE": "#2fbf71", "SCALE": "#5b6bef", "KILL": "#ef5b62"}.get(decision, "#f0b232")
+            add_pill_cell(self.table, row, 6, decision, color)
+            fill_cell(self.table, row, 7, snapshot.source)
 
         products = self.ctx.products.all(active_only=True)
         current = self.product_combo.currentText()
@@ -129,12 +138,20 @@ class MarketPage(BasePage):
         self.refresh()
 
     def _score(self) -> None:
-        result = self.ctx.market.opportunity_score(
-            median_price=self.median_input.value(),
-            competitors=self.competitors_input.value(),
-            watch_or_manual_hours=self.hours_input.value(),
-            demand_signal=float(self.demand_input.value()),
-        )
+        game = self.game_input.text().strip()
+        if game and self.ctx.market.latest(game) is not None:
+            result = self.ctx.market.opportunity_v2(
+                game,
+                manual_hours=self.hours_input.value(),
+                demand_signal=float(self.demand_input.value()),
+            )
+        else:
+            result = self.ctx.market.opportunity_score(
+                median_price=self.median_input.value(),
+                competitors=self.competitors_input.value(),
+                watch_or_manual_hours=self.hours_input.value(),
+                demand_signal=float(self.demand_input.value()),
+            )
         self.score_label.setText(
             f"Opportunity Score: {result['score']:.0f}/100 → {result['recommendation']}\n"
             f"Ценность/час: {result['value_per_hour']:.0f} ₽\n"

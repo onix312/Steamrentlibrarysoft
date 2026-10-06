@@ -64,9 +64,9 @@ class DropsPage(BasePage):
                                    self.refresh_button))
 
         self.accounts_table = make_table([
-            "ID", "Аккаунт", "Статус", "Ценность, ₽", "Рекомендация", "Следующая кампания",
+            "ID", "Аккаунт", "Статус", "Ценность, ₽", "StockUnit", "Stock", "Рекомендация", "Следующая кампания",
         ])
-        for col, width in ((0, 40), (1, 180), (2, 130), (3, 100), (4, 160), (5, 260)):
+        for col, width in ((0, 40), (1, 170), (2, 120), (3, 90), (4, 80), (5, 90), (6, 150), (7, 220)):
             self.accounts_table.setColumnWidth(col, width)
         root.addWidget(self.accounts_table, 1)
 
@@ -77,10 +77,13 @@ class DropsPage(BasePage):
         self.list_button.clicked.connect(self._mark_listed)
         self.package_button = QPushButton("Пакет передачи")
         self.package_button.clicked.connect(self._package)
+        self.sync_stock_button = QPushButton("Связать со складом")
+        self.sync_stock_button.clicked.connect(self._sync_stock)
         stock_row.addWidget(QLabel("Действия со стоком:"))
         stock_row.addWidget(self.ready_button)
         stock_row.addWidget(self.list_button)
         stock_row.addWidget(self.package_button)
+        stock_row.addWidget(self.sync_stock_button)
         stock_row.addStretch(1)
         root.addLayout(stock_row)
 
@@ -94,17 +97,20 @@ class DropsPage(BasePage):
         root.addWidget(self.campaigns_table)
 
     def refresh(self) -> None:
-        accounts = self.ctx.drops.accounts()
-        self.accounts_table.setRowCount(len(accounts))
-        for row, account in enumerate(accounts):
-            report = self.ctx.drops.valuation_report(account.id)
-            label, color = ACCOUNT_STATUS_META.get(account.status, (account.status, "#9aa0a6"))
-            set_row_id(self.accounts_table, row, account.id)
-            fill_cell(self.accounts_table, row, 1, account.display_name)
+        inventory = self.ctx.drops.unified_inventory()
+        self.accounts_table.setRowCount(len(inventory))
+        for row, item in enumerate(inventory):
+            account_id = item["account_id"]
+            report = self.ctx.drops.valuation_report(account_id)
+            label, color = ACCOUNT_STATUS_META.get(item["status"], (item["status"], "#9aa0a6"))
+            set_row_id(self.accounts_table, row, account_id)
+            fill_cell(self.accounts_table, row, 1, item["account"])
             add_pill_cell(self.accounts_table, row, 2, label, color)
-            fill_cell(self.accounts_table, row, 3, f"{report['current_value']:.0f}", align_right=True)
-            fill_cell(self.accounts_table, row, 4, report["recommendation"])
-            fill_cell(self.accounts_table, row, 5, report["next_campaign"] or "—")
+            fill_cell(self.accounts_table, row, 3, f"{item['estimated_value']:.0f}", align_right=True)
+            fill_cell(self.accounts_table, row, 4, str(item["stock_unit_id"] or "—"), align_right=True)
+            fill_cell(self.accounts_table, row, 5, item["stock_status"] or "—")
+            fill_cell(self.accounts_table, row, 6, report["recommendation"])
+            fill_cell(self.accounts_table, row, 7, report["next_campaign"] or "—")
 
         ranked = {c.id: score for c, score in self.ctx.drops.campaign_priorities()}
         campaigns = self.ctx.drops.campaigns()
@@ -153,6 +159,26 @@ class DropsPage(BasePage):
             self.refresh()
         else:
             QMessageBox.warning(self, "Сток", "Выставлять можно только аккаунты в статусе «В сток».")
+
+    def _sync_stock(self) -> None:
+        account_id = self._selected_account_id()
+        if account_id is None:
+            return
+        products = [p for p in self.ctx.products.all(active_only=True) if p.stock_mode == "account"]
+        if not products:
+            QMessageBox.information(
+                self, "Drops Stock",
+                "Нет активных продуктов со stock_mode=account. Создайте Drops-продукт в каталоге.",
+            )
+            return
+        labels = [f"{p.code} — {p.name}" for p in products]
+        chosen, ok = QInputDialog.getItem(self, "Drops Stock", "Продукт:", labels, 0, False)
+        if not ok:
+            return
+        product = products[labels.index(chosen)]
+        unit = self.ctx.drops.sync_stock_unit(account_id, product.id)
+        QMessageBox.information(self, "Drops Stock", f"Связан StockUnit #{unit.id}.")
+        self.refresh()
 
     def _package(self) -> None:
         account_id = self._selected_account_id()

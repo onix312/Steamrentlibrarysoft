@@ -38,6 +38,7 @@ from app.domain.enums import (
 from app.domain.value_objects import DomainError
 from app.services.audit_service import AuditService
 from app.services.os.stock_service import StockService, StockUnavailable
+from app.engines.registry import DiagnosticCase, build_default_registry
 
 log = logging.getLogger(__name__)
 
@@ -98,6 +99,7 @@ class WorkflowEngine:
         self.audit = audit
         self.config = config
         self.stock = stock
+        self.engines = build_default_registry()
         #: Внешний канал выдачи (например, автовыдача в чат заказа маркетплейса).
         #: Вызывается только при реальной (не DRY RUN) выдаче. Подключается снаружи.
         self.delivery_sink: Callable[[str, dict], dict] | None = None
@@ -314,38 +316,56 @@ class WorkflowEngine:
         self._store_context(run_id, {"delivery": delivery})
         return None
 
+    def _engine_for_run(self, run: models.WorkflowRun):
+        product = self._product(run.product_id)
+        template = dict(product.payload_template or {}) if product is not None else {}
+        engine_name = template.get("engine")
+        if not engine_name:
+            kind = template.get("kind")
+            engine_name = {
+                "config": "config_factory",
+                "mod_setup": "mod_doctor",
+                "save_repair": "save_doctor",
+                "server": "server_doctor",
+            }.get(kind, "server_doctor")
+        try:
+            return self.engines.resolve(str(engine_name)), template
+        except KeyError as exc:
+            raise DomainError(str(exc)) from exc
+
     def _h_analyze(self, run_id: int, step: dict, params: dict) -> str | None:
         run = self.get_run(run_id)
         if run is None:
             return None
-        from app.engines.server_doctor import diagnose as doctor_diagnose
-
-        diagnostics = run.context.get("input") or {}
-        diagnosis = doctor_diagnose(diagnostics)
-        self._store_context(run_id, {"diagnosis": diagnosis})
+        engine, template = self._engine_for_run(run)
+        diagnostics = dict(template)
+        diagnostics.update(run.context.get("input") or {})
+        case = DiagnosticCase.from_inputs(engine.name, diagnostics)
+        diagnosis = engine.analyze(case)
+        self._store_context(run_id, {"diagnosis": diagnosis, "engine": engine.name})
         return None
 
     def _h_generate_solution(self, run_id: int, step: dict, params: dict) -> str | None:
         run = self.get_run(run_id)
         if run is None:
             return None
-        diagnosis = run.context.get("diagnosis") or {}
-        solution = {
-            "summary": diagnosis.get("problem", "Решение подготовлено"),
-            "confidence": diagnosis.get("confidence", 0.0),
-            "fix": diagnosis.get("fix", "См. вложение"),
-            "rollback": diagnosis.get("rollback", "Бэкап до изменений"),
-        }
-        self._store_context(run_id, {"solution": solution})
+        engine, template = self._engine_for_run(run)
+        diagnostics = dict(template)
+        diagnostics.update(run.context.get("input") or {})
+        case = DiagnosticCase.from_inputs(engine.name, diagnostics)
+        solution = engine.prepare(case, run.context.get("diagnosis") or {})
+        self._store_context(run_id, {"solution": solution, "engine": engine.name})
         return None
 
     def _h_validate_solution(self, run_id: int, step: dict, params: dict) -> str | None:
         run = self.get_run(run_id)
         if run is None:
             return None
+        engine, _template = self._engine_for_run(run)
         solution = run.context.get("solution") or {}
-        if not solution.get("summary"):
-            raise DomainError("Валидация не пройдена: решение пустое.")
+        ok, detail = engine.validate(solution)
+        if not ok:
+            raise DomainError(f"Валидация не пройдена: {detail}")
         return None
 
     def _h_deliver(self, run_id: int, step: dict, params: dict) -> str | None:

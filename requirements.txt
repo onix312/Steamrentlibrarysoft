@@ -1,5 +1,6 @@
 # Ядро
 SQLAlchemy>=2.0
+alembic>=1.13
 requests>=2.31
 # Парсинг HTML-страниц FunPay в неофициальном режиме (чистая реализация клиента)
 beautifulsoup4>=4.12

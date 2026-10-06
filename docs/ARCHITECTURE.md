@@ -126,3 +126,64 @@ settings            key PK, value(json)
 интерфейса уведомлений; провайдеры факторов `DemandService` регистрируются
 динамически; репозитории позволяют заменить источник данных без правки
 сервисов.
+
+
+## Production Platform v2
+
+### Схема и миграции
+
+SQLite-схема версионируется Alembic. `Database` сначала запускает
+`MigrationManager`, а уже затем создаёт SQLAlchemy session factory.
+
+Для существующей базы без `alembic_version`:
+
+1. `PRAGMA integrity_check`;
+2. консистентный SQLite backup через backup API;
+3. stamp на baseline revision без пересоздания таблиц;
+4. повторный integrity check.
+
+Для последующих revision выполняется pre-migration backup и `upgrade head`.
+При post-migration corruption менеджер восстанавливает backup и прекращает запуск.
+
+### Fulfillment engines
+
+`WorkflowEngine` не импортирует конкретный doctor. Движок определяется
+metadata продукта и разрешается через `EngineRegistry`:
+
+```
+Product.payload_template.engine
+        ↓
+EngineRegistry
+        ↓
+FulfillmentEngine
+  analyze → prepare → validate → delivery
+```
+
+Встроены Server Doctor, Mod Doctor, Game Doctor, Save Doctor, Config Factory
+и Digital Delivery.
+
+### Product Packs
+
+Каталог фабрики хранится в versioned JSON-файлах `app/product_packs/*.json`.
+Импорт обновляет техническую конфигурацию продукта, но не перезаписывает
+операторские `price` и `minimum_price`.
+
+### Operations Center
+
+Главная рабочая поверхность агрегирует события доменов в `ActionItem` и
+сортирует их по приоритету: protocol failures, failed/manual workflows,
+проблемные заказы, непрочитанные сообщения, stock deficit, Drops actions и
+истекающие аренды.
+
+### FunPay circuit breaker
+
+Protocol Health отделён от бизнес-операций. При обнаружении несовместимой
+структуры внутреннего протокола breaker переводится в OPEN; capabilities
+неофициального адаптера становятся MANUAL/UNSUPPORTED. Успешный health probe
+закрывает breaker.
+
+### Drops inventory
+
+Drops-аккаунт остаётся доменной сущностью, но при выводе в продажу связывается
+с универсальным `StockUnit` через `payload_ref=twitch_account:<id>`.
+Резерв, освобождение и продажа синхронизируются атомарно в одной DB session.

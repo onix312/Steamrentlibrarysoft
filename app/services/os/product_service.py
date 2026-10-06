@@ -11,30 +11,7 @@ from app.database import models
 from app.database.session import Database
 from app.domain.enums import Actor, AutomationLevel, ProductType
 from app.services.audit_service import AuditService
-
-#: Шаблоны фабрики продуктов: порождают разные реальные продукты, не дубли.
-FACTORY_TEMPLATES: dict[str, list[dict]] = {
-    "Project Zomboid": [
-        {"code": "PZ_CONFIG_BEGINNER", "name": "PZ Beginner Server Config", "type": "auto", "level": "A4",
-         "price": 149, "manual": 0, "workflow": "auto_delivery", "template": {"kind": "config", "preset": "beginner"}},
-        {"code": "PZ_CONFIG_HARDCORE", "name": "PZ Hardcore Server Config", "type": "auto", "level": "A4",
-         "price": 149, "manual": 0, "workflow": "auto_delivery", "template": {"kind": "config", "preset": "hardcore"}},
-        {"code": "PZ_CONFIG_COOP", "name": "PZ Co-op Server Config", "type": "auto", "level": "A4",
-         "price": 179, "manual": 0, "workflow": "auto_delivery", "template": {"kind": "config", "preset": "coop"}},
-        {"code": "PZ_MOD_QOL", "name": "PZ QoL Mod Setup", "type": "semi_auto", "level": "A3",
-         "price": 499, "manual": 10, "workflow": "semi_auto_doctor", "template": {"kind": "mod_setup", "preset": "qol"}},
-        {"code": "PZ_SERVER_SETUP", "name": "PZ Server Setup под ключ", "type": "semi_auto", "level": "A2",
-         "price": 799, "manual": 25, "workflow": "server_setup", "template": {"kind": "server", "game": "project_zomboid"}},
-        {"code": "PZ_SAVE_REPAIR", "name": "PZ Save Repair", "type": "semi_auto", "level": "A3",
-         "price": 399, "manual": 15, "workflow": "semi_auto_doctor", "template": {"kind": "save_repair"}},
-    ],
-    "Minecraft": [
-        {"code": "MC_SERVER_CONFIG", "name": "Minecraft Server Config", "type": "auto", "level": "A4",
-         "price": 149, "manual": 0, "workflow": "auto_delivery", "template": {"kind": "config", "preset": "server"}},
-        {"code": "MC_MODPACK_SETUP", "name": "Minecraft Modpack Setup", "type": "semi_auto", "level": "A2",
-         "price": 699, "manual": 20, "workflow": "semi_auto_doctor", "template": {"kind": "mod_setup", "preset": "modpack"}},
-    ],
-}
+from app.services.os.product_packs import ProductPackService
 
 
 class ProductService:
@@ -43,6 +20,7 @@ class ProductService:
         self.clock = clock
         self.events = events
         self.audit = audit
+        self.packs = ProductPackService(db)
 
     # ------------------------------------------------------------------ CRUD
     def create(self, **fields) -> models.Product:
@@ -83,27 +61,32 @@ class ProductService:
 
     # ---------------------------------------------------------------- фабрика
     def factory_games(self) -> list[str]:
-        return list(FACTORY_TEMPLATES)
+        """Игры из versioned JSON product packs."""
+        return self.packs.games()
 
     def create_from_factory(self, game: str) -> list[models.Product]:
-        """Создаёт набор разных реальных продуктов по шаблонам фабрики игры."""
-        templates = FACTORY_TEMPLATES.get(game, [])
-        created: list[models.Product] = []
-        for template in templates:
-            try:
-                product = self.create(
-                    code=template["code"], name=template["name"], game=game,
-                    type=template["type"], automation_level=template["level"],
-                    price=float(template["price"]), minimum_price=float(template["price"]) * 0.7,
-                    estimated_manual_minutes=int(template["manual"]),
-                    workflow_code=template["workflow"],
-                    stock_mode="stock" if template["type"] == "auto" else "none",
-                    payload_template=template.get("template"),
+        """Import/update a game pack and return only newly created products.
+
+        Existing products are still refreshed from the pack, but operator-controlled
+        price/minimum_price remain untouched.
+        """
+        with self.db.session() as session:
+            existing_codes = set(session.scalars(
+                select(models.Product.code).where(models.Product.game == game)
+            ))
+        self.packs.import_game(game)
+        with self.db.session() as session:
+            return list(session.scalars(
+                select(models.Product)
+                .where(
+                    models.Product.game == game,
+                    models.Product.code.not_in(existing_codes) if existing_codes else True,
                 )
-                created.append(product)
-            except ValueError:
-                continue  # уже создан ранее
-        return created
+                .order_by(models.Product.id)
+            ))
+
+    def import_product_packs(self) -> dict:
+        return self.packs.import_all()
 
     # ---------------------------------------------------------------- метрики
     def metrics(self, product_id: int) -> dict:

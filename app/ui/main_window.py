@@ -35,6 +35,7 @@ from app.ui.pages.leases import LeasesPage
 from app.ui.pages.market_page import MarketPage
 from app.ui.pages.notifications import NotificationsPage
 from app.ui.pages.orders import OrdersPage
+from app.ui.pages.operations import OperationsPage
 from app.ui.pages.products import ProductsPage
 from app.ui.pages.queue_page import QueuePage
 from app.ui.pages.revenue_page import RevenuePage
@@ -48,6 +49,7 @@ from app.ui.widgets import Pill
 log = logging.getLogger(__name__)
 
 NAV_ITEMS = [
+    ("operations", "⚡  Operations"),
     ("dashboard", "🏠  Dashboard"),
     ("orders", "📦  Заказы"),
     ("library", "🎮  Библиотека"),
@@ -82,7 +84,7 @@ class MainWindow(QMainWindow):
     def __init__(self, ctx) -> None:
         super().__init__()
         self.ctx = ctx
-        self.setWindowTitle("Steam Rent Manager — библиотека, семьи, FunPay")
+        self.setWindowTitle("FunPay Automation OS — Steam, Drops, Products")
         self.resize(1320, 860)
         self.setMinimumSize(1100, 720)
         self.setWindowIcon(_make_icon())
@@ -100,7 +102,7 @@ class MainWindow(QMainWindow):
         self._lease_timer.timeout.connect(self._tick_leases)
         self._lease_timer.start()
 
-        self._switch_to("dashboard")
+        self._switch_to("operations")
 
     # ---------------------------------------------------------------- layout
     def _build_layout(self) -> None:
@@ -116,9 +118,9 @@ class MainWindow(QMainWindow):
         sidebar_layout.setContentsMargins(12, 16, 12, 12)
         sidebar_layout.setSpacing(3)
 
-        title = QLabel("Steam Rent")
+        title = QLabel("FunPay OS")
         title.setStyleSheet("font-size:18px; font-weight:800; letter-spacing:0.3px;")
-        subtitle = QLabel("Families → FunPay")
+        subtitle = QLabel("Automation Control Center")
         subtitle.setStyleSheet(f"color:{COLORS['text_muted']}; font-size:11px; margin-bottom:10px;")
         sidebar_layout.addWidget(title)
         sidebar_layout.addWidget(subtitle)
@@ -142,7 +144,7 @@ class MainWindow(QMainWindow):
 
         self.stack = QStackedWidget()
         page_defs = [
-            ("dashboard", DashboardPage), ("orders", OrdersPage), ("library", LibraryPage),
+            ("operations", OperationsPage), ("dashboard", DashboardPage), ("orders", OrdersPage), ("library", LibraryPage),
             ("steam", SteamPage), ("funpay", FunPayPage),
             ("products", ProductsPage), ("stock", StockPage), ("workflows", WorkflowsPage),
             ("market", MarketPage), ("drops", DropsPage), ("drops_sessions", DropsSessionsPage),
@@ -156,6 +158,11 @@ class MainWindow(QMainWindow):
             page = page_cls(self.ctx)
             self.pages[key] = page
             self.stack.addWidget(page)
+
+        operations_page = self.pages.get("operations")
+        if isinstance(operations_page, OperationsPage):
+            operations_page.navigate_requested.connect(self._switch_to)
+
         root.addWidget(self.stack, 1)
         self.setCentralWidget(central)
 

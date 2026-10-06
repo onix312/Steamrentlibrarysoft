@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.clock import Clock
 from app.core.events import TOPIC_DATA_CHANGED, EventBus
@@ -114,3 +114,126 @@ class MarketService:
                 "automation": round(automation_pct, 1),
             },
         }
+
+
+    # --------------------------------------------------------- Market Radar v2
+    def timeline(self, game_name: str, limit: int = 100) -> list[models.MarketSnapshot]:
+        """Chronological time series for one market."""
+        with self.db.session() as session:
+            rows = list(session.scalars(
+                select(models.MarketSnapshot)
+                .where(models.MarketSnapshot.game_name == game_name)
+                .order_by(models.MarketSnapshot.captured_at.desc(), models.MarketSnapshot.id.desc())
+                .limit(limit)
+            ))
+        return list(reversed(rows))
+
+    def trend(self, game_name: str, limit: int = 30) -> dict:
+        rows = self.timeline(game_name, limit)
+        if not rows:
+            return {
+                "samples": 0, "lowest_delta": 0.0, "median_delta": 0.0,
+                "competitor_delta": 0, "new_competitors": 0, "left_competitors": 0,
+            }
+        first, last = rows[0], rows[-1]
+        competitor_delta = int(last.competitors - first.competitors)
+        return {
+            "samples": len(rows),
+            "lowest_delta": round(last.lowest_price - first.lowest_price, 2),
+            "median_delta": round(last.median_price - first.median_price, 2),
+            "listing_delta": int(last.listing_count - first.listing_count),
+            "competitor_delta": competitor_delta,
+            "new_competitors": max(0, competitor_delta),
+            "left_competitors": max(0, -competitor_delta),
+        }
+
+    def sales_signal(self, game_name: str) -> dict:
+        with self.db.session() as session:
+            products = list(session.scalars(
+                select(models.Product).where(models.Product.game == game_name)
+            ))
+            ids = [product.id for product in products]
+            if not ids:
+                return {"products": 0, "sales": 0, "revenue": 0.0}
+            orders = list(session.scalars(
+                select(models.Order).where(
+                    models.Order.product_id.in_(ids),
+                    models.Order.status != "cancelled",
+                )
+            ))
+        return {
+            "products": len(products),
+            "sales": len(orders),
+            "revenue": round(sum(order.price for order in orders), 2),
+        }
+
+    def opportunity_v2(self, game_name: str, *, manual_hours: float = 0.25,
+                       demand_signal: float = 50.0, automation_pct: float = 90.0,
+                       stock_deficit: int = 0) -> dict:
+        snapshot = self.latest(game_name)
+        if snapshot is None:
+            return {"score": 0.0, "recommendation": "HOLD", "reason": "no market snapshots"}
+        base = self.opportunity_score(
+            median_price=snapshot.median_price,
+            competitors=snapshot.competitors,
+            watch_or_manual_hours=manual_hours,
+            demand_signal=demand_signal,
+            stock_deficit=stock_deficit,
+            automation_pct=automation_pct,
+        )
+        trend = self.trend(game_name)
+        sales = self.sales_signal(game_name)
+        momentum = 0.0
+        if trend["median_delta"] > 0:
+            momentum += min(8.0, trend["median_delta"] / max(1.0, snapshot.median_price) * 100)
+        if trend["competitor_delta"] < 0:
+            momentum += min(8.0, abs(trend["competitor_delta"]) * 2.0)
+        if sales["sales"] > 0:
+            momentum += min(10.0, sales["sales"] * 1.5)
+        score = round(max(0.0, min(100.0, base["score"] + momentum)), 1)
+
+        has_product = sales["products"] > 0
+        if score >= 72 and has_product and sales["sales"] >= 3:
+            recommendation = "SCALE"
+        elif score >= 68 and not has_product:
+            recommendation = "CREATE"
+        elif score < 28 and has_product and sales["sales"] == 0:
+            recommendation = "KILL"
+        else:
+            recommendation = "HOLD"
+
+        return {
+            **base,
+            "score": score,
+            "recommendation": recommendation,
+            "trend": trend,
+            "sales": sales,
+            "market": {
+                "lowest": snapshot.lowest_price,
+                "median": snapshot.median_price,
+                "competitors": snapshot.competitors,
+                "listings": snapshot.listing_count,
+            },
+        }
+
+    def listing_price_suggestions(self, game_name: str) -> list[dict]:
+        snapshot = self.latest(game_name)
+        if snapshot is None:
+            return []
+        with self.db.session() as session:
+            products = list(session.scalars(
+                select(models.Product).where(
+                    models.Product.game == game_name,
+                    models.Product.active.is_(True),
+                )
+            ))
+        result = []
+        for product in products:
+            result.append({
+                "product_id": product.id,
+                "code": product.code,
+                "current": product.price,
+                "suggested": self.suggest_price(product, PricingStrategy.BALANCED, snapshot),
+                "minimum": product.minimum_price,
+            })
+        return result

@@ -74,3 +74,18 @@
 * `game_licenses` / `access_leases`: частичный уникальный индекс на активные
   аренды по лицензии.
 * `twitch_accounts`: переходы статуса только через условный UPDATE.
+
+
+## Protocol Health / circuit breaker
+
+Неофициальная FunPay-интеграция защищена глобальным circuit breaker.
+Contract fixtures фиксируют ожидаемую структуру auth/orders/chat/runner/lots.
+При обнаружении несовместимой структуры автоматические возможности адаптера
+становятся недоступными, Operations Center показывает критичную ошибку.
+Успешная ручная проверка Protocol Health сбрасывает breaker.
+
+## Production DB
+
+SQLite больше не полагается на `create_all()` как механизм обновления схемы.
+Alembic хранит revision, legacy-база stamp'ится только после integrity-check
+и backup. Перед последующими миграциями создаётся pre-migration backup.

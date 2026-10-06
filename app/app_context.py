@@ -50,6 +50,7 @@ from app.services.order_service import OrderService
 from app.services.os.analytics_service import OSAnalyticsService
 from app.services.os.import_service import FunPayImportService
 from app.services.os.market_service import MarketService
+from app.services.os.operations_service import OperationsService
 from app.services.os.product_service import ProductService
 from app.services.os.queue_service import QueueService
 from app.services.os.sales_service import SalesService
@@ -127,6 +128,7 @@ class AppContext:
         self.drops = DropsService(self.db, self.clock, self.events, self.audit,
                                   self.config, self.secrets)
         self.browser = BrowserProfileManager(self.config)
+        self.operations = OperationsService(self.db, self.clock)
 
         # Движок правил: видит склад, дропы, воркфлоу, продукты, очередь.
         self.rules = RulesEngine(stock=self.stock, drops=self.drops, engine=self.engine,
@@ -198,21 +200,12 @@ class AppContext:
 
     # ---------------------------------------------------------------- бэкапы
     def backup_database(self) -> Path | None:
-        """Копия БД в ``data/backups`` с ротацией последних 7 (ТЗ §25)."""
-        db_file = self.data_dir / "steamrent.db"
-        if not db_file.exists():
-            log.warning("Бэкап пропущен: файл БД не найден (%s)", db_file)
+        """Verified SQLite backup through the production DB layer."""
+        target = self.db.backup_database("manual")
+        if target is None:
             return None
-        backups_dir = self.data_dir / "backups"
-        backups_dir.mkdir(parents=True, exist_ok=True)
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
-        target = backups_dir / f"steamrent_{stamp}.db"
-        try:
-            shutil.copy2(db_file, target)
-        except OSError as exc:
-            log.error("Не удалось создать резервную копию: %s", exc)
-            return None
-        old = sorted(backups_dir.glob("steamrent_*.db"))
+        backups_dir = target.parent
+        old = sorted(backups_dir.glob("*.db"))
         for stale in old[:-BACKUP_KEEP]:
             try:
                 stale.unlink()
@@ -220,12 +213,26 @@ class AppContext:
                 log.warning("Не удалось удалить старый бэкап %s: %s", stale, exc)
         return target
 
+    def database_health(self) -> dict:
+        ok, detail = self.db.integrity_check()
+        return {
+            "ok": ok,
+            "detail": detail,
+            "schema_version": self.db.schema_version,
+            "schema_revision": self.db.schema_revision,
+        }
+
+    def restore_database(self, backup_path: Path) -> None:
+        self.db.restore_from_backup(Path(backup_path))
+        self.audit.log("database.restored", Actor.USER, entity="database",
+                       backup=str(backup_path), schema=self.db.schema_revision)
+
     # -------------------------------------------------------------- lifecycle
     def shutdown(self) -> None:
         if self.scheduler is not None and hasattr(self.scheduler, "stop_all"):
             self.scheduler.stop_all()
         try:
-            self.db.engine.dispose()
+            self.db.close()
         except Exception as exc:  # noqa: BLE001 - корректное завершение
             log.error("Ошибка при закрытии БД: %s", exc)
         log.info("Приложение остановлено штатно.")
