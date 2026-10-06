@@ -1,4 +1,4 @@
-# Steamrentlibrarysoft
+# Steamrentlibrarysoft\n\n![tests](https://github.com/onix312/Steamrentlibrarysoft/actions/workflows/tests.yml/badge.svg)
 
 Локальное **desktop**-приложение (не веб) для управления продажей доступа
 к играм через **Steam Families** на площадке **FunPay**.
@@ -56,12 +56,22 @@ Steam-аккаунты → библиотеки → семейная библи�
 
 ## Быстрый старт
 
+На Windows достаточно запустить:
+
+```bat
+start.bat
+```
+
+Скрипт создаёт `.venv`, устанавливает зависимости только при изменении
+`requirements.txt`, выполняет import-smoke и запускает приложение.
+
+Ручной запуск:
+
 ```bash
 python -m venv .venv
-.venv\Scripts\activate        # Windows
+.venv\Scripts\activate
 pip install -r requirements.txt
-
-python run.py                 # запуск приложения
+python run.py
 ```
 
 При первом запуске в режиме симуляции приложение предложит добавить
@@ -207,6 +217,36 @@ GUI никогда не блокируется: сетевые операции 
   «дефицит склада → задача пополнения», «кампания заканчивается → напомнить»,
   «воркфлоу долго ждёт подтверждения → уведомить» и т. п.; только подсказки
   и задачи, никаких деструктивных действий.
+
+
+## Production Platform v2
+
+* **Production DB**: схема версионируется Alembic; существующая pre-Alembic
+  база перед первым stamp проходит `PRAGMA integrity_check` и резервируется.
+  Перед реальным upgrade также создаётся SQLite backup; доступно проверенное
+  восстановление из backup. Текущие revision/schema version доступны через
+  `Database.schema_revision` / `Database.schema_version`.
+* **CI**: Windows, Python 3.11/3.12, полный pytest, import smoke, AppContext
+  smoke и Qt offscreen smoke.
+* **Operations Center**: стартовый экран собирает проблемы интеграций, новые
+  заказы, ручные workflow checkpoints, входящие сообщения, stock deficit,
+  истекающие аренды и Drops actions в одну приоритетную очередь.
+* **Fulfillment Engine Registry**: workflow выбирает движок из product metadata,
+  а не вызывает Server Doctor напрямую. Встроены Server/Mod/Game/Save Doctor,
+  Config Factory и Digital Delivery.
+* **Product Packs**: каталог вынесен в versioned JSON. Обновление pack меняет
+  технические параметры, но сохраняет заданные оператором цену и minimum price.
+  Базовый pack покрывает Project Zomboid, Minecraft, 7 Days to Die, Terraria,
+  Valheim, Enshrouded, Palworld, Space Engineers, RimWorld, ARK, Ready or Not,
+  Phasmophobia, R.E.P.O., The Forest, Raft, Don't Starve Together и Rust.
+* **Market Radar v2**: временные ряды, изменения median/competition, связь с
+  нашими продажами, решения CREATE/SCALE/HOLD/KILL и предложения цены лотов.
+* **FunPay Protocol Health**: contract fixtures для auth/orders/chat/runner/lots
+  и circuit breaker. При подозрении на изменение протокола автоматические
+  FunPay-capabilities выключаются до успешной проверки.
+* **Drops v2**: единый Campaign → Account → StockUnit inventory, valuation,
+  production queue, browser profile linkage и синхронизация reserve/release/sold
+  с универсальным цифровым складом.
 
 ## Ограничения (честно)
 
