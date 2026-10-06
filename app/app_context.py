@@ -232,7 +232,7 @@ class AppContext:
         if self.scheduler is not None and hasattr(self.scheduler, "stop_all"):
             self.scheduler.stop_all()
         try:
-            self.db.engine.dispose()
+            self.db.close()
         except Exception as exc:  # noqa: BLE001 - корректное завершение
             log.error("Ошибка при закрытии БД: %s", exc)
         log.info("Приложение остановлено штатно.")
